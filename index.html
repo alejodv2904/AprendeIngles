@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -134,6 +138,10 @@ button.card:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line)
 .seg button { padding: 6px 10px; border-radius: 9px; font-size: 14px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
 .seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px var(--shadow); }
 .link-danger { color: var(--bad); font-weight: 600; font-size: 15px; }
+.link-accent { color: var(--accent); font-weight: 600; font-size: 15px; }
+.code-box { width: 100%; min-height: 110px; resize: vertical; background: var(--sunk); color: var(--ink); border: 2px solid var(--line); border-radius: 12px; padding: 12px; font: 13px/1.4 ui-monospace, Menlo, monospace; word-break: break-all; }
+.msg { font-size: 14px; font-weight: 600; min-height: 1.4em; margin: 8px 0 0; }
+.msg.ok { color: var(--good); } .msg.err { color: var(--bad); }
 
 /* bottom nav */
 .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--surface); border-top: 2px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
@@ -385,6 +393,16 @@ const DEFAULT = { xp: 0, streak: 0, lastDay: null, done: {}, daily: {}, mistakes
 let S = Object.assign({}, DEFAULT);
 try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign({}, DEFAULT, JSON.parse(raw)); } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
+const backupCode = () => 'PAP1.' + btoa(unescape(encodeURIComponent(JSON.stringify(S))));
+function readBackup(txt) {
+  try {
+    const m = String(txt).replace(/\s+/g, '').match(/PAP1\.([A-Za-z0-9+/=]+)/); if (!m) return null;
+    const o = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+    if (!o || typeof o.xp !== 'number' || typeof o.done !== 'object') return null;
+    return Object.assign({}, DEFAULT, o, { mistakes: Array.isArray(o.mistakes) ? o.mistakes : [], daily: o.daily || {} });
+  } catch (e) { return null; }
+}
 
 const dayKey = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const yesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); return dayKey(d); };
@@ -618,7 +636,13 @@ function profileView() {
     <div class="row"><span>Voz en inglés</span><span style="color:var(--muted);font-size:14px">${canSpeak ? (voice ? esc(voice.name) : 'Predeterminada') : 'No disponible'}</span></div>
     <div class="row"><span>Borrar todo el progreso</span><button class="link-danger" id="resetBtn">Reiniciar</button></div>
   </div>
-  <p class="sub" style="margin-top:18px;font-size:13px">Tu progreso se guarda en este navegador. Para instalar la app en el iPhone: abre esta página en Safari, toca Compartir y luego «Agregar a inicio».</p>`;
+  <h2 class="section-t">Tu progreso guardado</h2>
+  <div class="words">
+    <div class="row"><span>Se guarda solo en este teléfono cada vez que respondes un ejercicio.</span></div>
+    <div class="row"><span>Sacar una copia de seguridad</span><button class="link-accent" id="backupBtn">Copiar código</button></div>
+    <div class="row"><span>Recuperar desde una copia</span><button class="link-accent" id="restoreBtn">Restaurar</button></div>
+  </div>
+  <p class="sub" style="margin-top:18px;font-size:13px">Guarda el código de respaldo en Notas o envíatelo por WhatsApp. Si cambias de teléfono o borras los datos de Safari, pégalo en «Restaurar» y sigues donde ibas. Para instalar la app: abre la página en Safari, toca Compartir y luego «Agregar a inicio».</p>`;
 }
 
 /* ---------- sheets ---------- */
@@ -791,6 +815,25 @@ document.addEventListener('click', e => {
   if (d.sound) { S.sound = d.sound === '1'; save(); render(); return; }
   if (t.id === 'resetBtn') return sheet(`<h3>¿Borrar todo el progreso?</h3><p>Se borrarán tu racha, tus XP y las lecciones completadas. No se puede deshacer.</p><div class="acts"><button class="btn ghost" data-close>Cancelar</button><button class="btn bad" id="resetYes">Borrar progreso</button></div>`);
   if (t.id === 'resetYes') { S = Object.assign({}, DEFAULT, { done: {}, daily: {}, mistakes: [] }); save(); closeSheet(); render(); return; }
+  if (t.id === 'backupBtn') {
+    const code = backupCode();
+    sheet(`<h3>Tu código de respaldo</h3><p>Copia este código y guárdalo en Notas o envíatelo. Incluye tus XP, tu racha y las lecciones completadas.</p><textarea class="code-box" id="backupTxt" readonly>${esc(code)}</textarea><p class="msg" id="backupMsg" role="status"></p><div class="acts"><button class="btn" id="copyCode">Copiar código</button><button class="btn ghost" data-close>Cerrar</button></div>`);
+    return;
+  }
+  if (t.id === 'copyCode') {
+    const ta = $('#backupTxt'), msg = $('#backupMsg');
+    const fallback = () => { ta.focus(); ta.select(); msg.className = 'msg'; msg.textContent = 'Código seleccionado: mantén presionado y toca «Copiar».'; };
+    try { navigator.clipboard.writeText(ta.value).then(() => { msg.className = 'msg ok'; msg.textContent = 'Copiado. Ahora pégalo en Notas o en un chat.'; }, fallback); } catch (err) { fallback(); }
+    return;
+  }
+  if (t.id === 'restoreBtn') return sheet(`<h3>Restaurar progreso</h3><p>Pega aquí tu código de respaldo. Reemplazará el progreso que tienes ahora en este teléfono.</p><textarea class="code-box" id="restoreTxt" placeholder="PAP1.…"></textarea><p class="msg" id="restoreMsg" role="status"></p><div class="acts"><button class="btn" id="restoreYes">Restaurar</button><button class="btn ghost" data-close>Cancelar</button></div>`);
+  if (t.id === 'restoreYes') {
+    const msg = $('#restoreMsg'), data = readBackup($('#restoreTxt').value);
+    if (!data) { msg.className = 'msg err'; msg.textContent = 'Ese código no es válido. Revisa que lo pegaste completo, desde «PAP1.» hasta el final.'; return; }
+    S = data; save(); render();
+    sheet(`<h3>Progreso restaurado</h3><p>Tienes ${S.xp} XP y ${NODES.filter(n => S.done[n.id]).length} lecciones completadas.</p><div class="acts"><button class="btn" data-close>Seguir aprendiendo</button></div>`);
+    return;
+  }
   if (t.id === 'quit') return quitAsk();
   if (t.id === 'quitYes') { closeSheet(); return endLessonUI(); }
   if (!L) return;

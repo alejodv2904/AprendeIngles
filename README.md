@@ -1,5 +1,7 @@
 # Paso a Paso English
 
+<img src="icon-512.png" width="120" alt="Ícono de la app">
+
 App para aprender inglés desde cero (nivel A1), al estilo de las apps de lecciones cortas: camino de lecciones, vidas, XP, racha diaria y meta diaria.
 
 ## Contenido
@@ -14,4 +16,8 @@ App para aprender inglés desde cero (nivel A1), al estilo de las apps de leccio
 2. Ábrelo en **Safari**.
 3. Toca **Compartir** → **Agregar a inicio**.
 
-El progreso se guarda en el navegador del teléfono.
+Al agregarla a inicio aparece con su propio ícono y se abre a pantalla completa, como una app.
+
+## Progreso
+- Se guarda automáticamente en el teléfono cada vez que respondes un ejercicio.
+- En **Perfil → Tu progreso guardado** puedes sacar un **código de respaldo** (guárdalo en Notas o envíatelo) y **restaurarlo** si cambias de teléfono o borras los datos de Safari.
